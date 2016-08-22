@@ -2,35 +2,16 @@
 <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.2/handlebars.min.js"></script>
 <script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
 <script src="//cdn.datatables.net/1.10.10/js/jquery.dataTables.js"></script>
-<!-- <script src="js/crossfilter.v1.min.js"></script> -->
-<!-- <script src="//cdnjs.cloudflare.com/ajax/libs/dc/1.7.5/dc.min.js"></script> -->
 
 <link rel="stylesheet" href="//cdn.datatables.net/1.10.10/css/jquery.dataTables.css" />
-<!-- <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dc/1.7.5/dc.min.css" /> -->
 <link rel="stylesheet" href="css/dashboard.css" />
 
-<div id="sted-modal" class="modal fade" tabindex="-1" role="dialog">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title"></h4>
-      </div>
-      <div class="modal-body">
-        <p></p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
 
 <div class="container-fluid">
 
 <header class="row header">
 	<div class="col-md-12">
-		<h1>STED participants</h1>
+		<h1>Agriculture Training</h1>
 	</div>
 </header>
 
@@ -60,27 +41,35 @@
 <hr>
 
 <div class="row">
-	<div class="col-sm-3">
-		<h4>Gender</h4>
-	  <div id="genderPie"></div>
+	<div class="col-sm-3 col-xs-6">
+		<h4>Knowledge change</h4>
+	  <div id="knowledgechangePie"></div>
 	</div>
-	<div class="col-sm-3"><div id="genderLegend"> </div></div>
-	<div class="col-sm-3">
-		<h4>Civil status</h5>
-	  <div id="civilPie"></div>
+	<div class="col-sm-2 col-xs-6"><div id="knowledgechangeLegend"> </div></div>
+	<div class="col-sm-7 col-xs-12">
+			<h4>Number of participants by knowledge change score</h4>
+			<div id="knowLine"></div>
 	</div>
-	<div class="col-sm-3"> <div id="civilLegend"> </div> </div>
+
 </div>
 
 <hr>
 
 <div class="row">
 	<div class="col-sm-3">
-		<h4>Training applied for</h4>
-	  <div id="trainingPie"></div>
+		<h4>Participants per training</h4>
+	  <div id="perTrainingPie"></div>
 	</div>
-	<div class="col-sm-3"><div id="trainingLegend"> </div></div>
+	<div class="col-sm-3"><div id="perTrainingLegend"> </div></div>
 </div>
+
+<!-- <div class="dashboard-section">
+  <h3>completed by date</h3>
+	<div id="progressGraph"></div>
+</div> -->
+
+<!--
+<hr style="margin:0;"> -->
 
 <hr>
 
@@ -94,5 +83,4 @@
 </footer>
 </div>
 
-
-<script src="js/sted.js"></script>
+<script src="js/agriculture.js"></script>

@@ -1,20 +1,33 @@
 <script src="//ajax.aspnetcdn.com/ajax/jquery.validate/1.13.1/jquery.validate.min.js"></script>
 <script src="//cdn.datatables.net/1.10.7/js/jquery.dataTables.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.2/handlebars.min.js"></script>
-<script src="js/users.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.2/moment.min.js"></script>
+<script src="js/assets.js"></script>
+<script>
+	var localConfig = {{{json opts}}};
+</script>
 <link href="//cdn.datatables.net/1.10.7/css/jquery.dataTables.min.css" rel="stylesheet">
 
 <div class="container">
 
 <header class="row header">
 	<div class="col-md-12">
-		<h1>
-		<a href="#" id="add-toggle" class="btn btn-dark btn-lg" data-toggle="modal" data-target="#add-user-modal"><b class="glyphicon glyphicon-plus"></b> Create User</a></h1>
+		<h1>Assets</h1>
 	</div>
-
 </header>
-<hr>
-
+<nav class="navbar row">
+	<ul class="nav navbar-nav">
+		<li>
+			<a href="#" id="add-toggle" data-toggle="modal" data-target="#add-asset-modal"><b class="glyphicon glyphicon-plus"></b> Create Asset</a>
+		</li>
+		<!-- <li>
+			<a href="#" id="import-toggle" data-toggle="modal" data-target="#import-asset-modal"><b class="glyphicon glyphicon-open"></b> Import Assets</a>
+		</li>
+		<li>
+			<a href="assets/export" target="_blank" id="export-toggle"><b class="glyphicon glyphicon-save"></b> Export Assets</a>
+		</li> -->
+	</ul>
+</nav>
 <div class="row">
 	<div class="col-md-12">
 		{{#if error}}
@@ -29,65 +42,64 @@
 				  <p><strong>Good news!</strong> <em>{{{success}}}</em></p>
 			</div>
 		{{/if}}
-		<table class="{{#if edit}}five-col{{else}}three-col{{/if}}">
+		<table class="six-col">
 			<thead>
 				<tr>
-					<th>Username</th>
-					<th>Permissions</th>
-					{{#if edit}}
-						<th>New Password</th>
-						<th>Confirm Password</th>
-					{{/if}}
+					<th>Date</th>
+					<th>Title</th>
+					<th>Creator</th>
+					<th>Category</th>
+					<th>Published</th>
 					<th class="btn-col"></th>
 				</tr>
 			</thead>
 			<tbody>
-			{{#each users}}
+			{{#each assets}}
 				<tr>
-					<td>{{username}}</td>
-					<td>{{permissions}}</td>
-					{{#if ../../edit}}
-						<td></td>
-						<td></td>
-					{{/if}}
+					<td>{{formatDate date 'MM/DD/YYYY'}}</td>
+					<td>{{title}}</td>
+					<td>{{user}}</td>
+					<td>{{category}}</td>
+					<td>{{published}}</td>
 					<td>
-						{{#eq username ../../user.username}}{{else}}
-							<div class="btn-group">
-								<button class="btn btn-warning sharp edit-toggle" title="Edit User" data-toggle="modal" data-target="#edit-user-modal" rel="{{username}}"><b class="glyphicon glyphicon-edit"></b></button></a>
-								<button class="btn btn-danger sharp delete-toggle" title="Delete User" data-toggle="modal" data-target="#delete-user-modal" rel="{{username}}"><b class="glyphicon glyphicon-remove"></b></button>
-							</div>
-						{{/eq}}
+						<div class="btn-group">
+							<button class="btn btn-warning sharp edit-toggle" title="Edit Asset" data-toggle="modal" data-target="#edit-asset-modal" rel="{{_id}}"><b class="glyphicon glyphicon-edit"></b></button></a>
+							<button class="btn btn-danger sharp delete-toggle" title="Delete Asset" data-toggle="modal" data-target="#delete-asset-modal" rel="{{_id}}"><b class="glyphicon glyphicon-remove"></b></button>
+						</div>
 					</td>
 				</tr>
 			{{/each}}
 			</tbody>
 		</table>
-		<div id="delete-user-modal" class="modal fade" role="dialog">
-			<div class="modal-dialog">
+		<div id="delete-asset-modal" class="modal fade" role="dialog">
+			<div class="modal-dialog modal-lg">
 				<div class="modal-content">
+					<div class="modal-header">
+						Delete Asset
+					</div>
 					<div class="modal-body">
-						<p>Are you sure you want to delete this user?</p>
+						<p>Are you sure you want to delete this asset?</p>
 						<p><strong>This action cannot be undone.</strong></p>
 					</div>
-					<form action="user" method="POST" id="delete-user">
-						<input type="hidden" name="_method" value="DELETE">
-						<div class="modal-footer">
+					<div class="modal-footer">
+						<form action="asset" method="POST" id="delete-asset">
+							<input type="hidden" name="_method" value="DELETE">
 							<div class="btn-group">
 								<button class="btn btn-danger sharp">Yes</button>
 								<button type="button" class="btn btn-warning sharp" data-dismiss="modal">Cancel</button>
 							</div>
-						</div>
-					</form>
+						</form>
+					</div>
 			    </div>
 		   	</div>
 		</div>
-		<div id="edit-user-modal" class="modal fade" role="dialog">
-			<div class="modal-dialog">
+		<div id="edit-asset-modal" class="modal fade" role="dialog">
+			<div class="modal-dialog modal-lg">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h4 class="modal-title">Edit User</h4>
+						<h4 class="modal-title">Edit Asset</h4>
 					</div>
-					<form action="user" method="POST" id="edit-user">
+					<form action="asset" method="POST" id="edit-asset" enctype="multipart/form-data" >
 						<input type="hidden" name="_method" value="PUT">
 						<div class="modal-body">
 						</div>
@@ -101,13 +113,13 @@
 				</div>
 			</div>
 		</div>
-		<div id="add-user-modal" class="modal fade" role="dialog">
-			<div class="modal-dialog">
+		<div id="add-asset-modal" class="modal fade" role="dialog">
+			<div class="modal-dialog modal-lg">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h4 class="modal-title">Create User</h4>
+						<h4 class="modal-title">Create Asset</h4>
 					</div>
-					<form action="user" method="POST" id="add-user">
+					<form action="asset" method="POST" id="add-asset" enctype="multipart/form-data" >
 						<div class="modal-body">
 						</div>
 						<div class="modal-footer">
@@ -120,13 +132,13 @@
 				</div>
 			</div>
 		</div>
-		<div id="import-user-modal" class="modal fade" role="dialog">
-			<div class="modal-dialog">
+		<div id="import-asset-modal" class="modal fade" role="dialog">
+			<div class="modal-dialog modal-lg">
 				<div class="modal-content">
 					<div class="modal-header">
 						<h4 class="modal-title">Import Assets</h4>
 					</div>
-					<form action="users/import" method="POST" id="import-user" enctype="multipart/form-data">
+					<form action="assets/import" method="POST" id="import-asset" enctype="multipart/form-data">
 						<div class="modal-body">
 							<div class="form-group{{#neq type "webmap"}} active{{/neq}}{{#if type}}{{else}} active{{/if}}" id="form-file">
 								<label for="import">Upload File</label>
@@ -147,10 +159,4 @@
 	</div>
 </div>
 
-<hr>
-<footer id="site-footer">
-	<div class="row row-logo">
-				{{{logos}}}
-			</div>
-</footer>
-</div>
+</div> <!-- /container -->

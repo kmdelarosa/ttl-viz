@@ -1,19 +1,21 @@
-var data;
+var data, filteredData;
 var locationLookup = {};
+
+var commaSeperator = d3.format(",");
 
 d3.select(window).on("resize", throttle);
 var throttleTimer;
 function throttle() {
   window.clearTimeout(throttleTimer);
     throttleTimer = window.setTimeout(function() {
-      // $('.coreByBarangay').empty();
+      $('.coreByBarangay').empty();
       resize();
     }, 200);
 }
 function resize() {
-  d3.select("#genderPie").select("svg").remove();
-  d3.select('#civilPie').select("svg").remove();
-  d3.select('#trainingPie').select("svg").remove();
+  d3.select("#livelihoodPie").select("svg").remove();
+  d3.select('#proposalPie').select("svg").remove();
+  d3.select('#amountPie').select("svg").remove();
   d3.select('#brgyBars').select("svg").remove();
 
   buildPies();
@@ -25,9 +27,11 @@ function clearAllCheckboxes(){
   filter();
 }
 
-// # Skills Training and Enterprise Development (STED)
+// Household ID, Household Last Name, Household First Name, Household Livelihood Category, Proposal Category, Proposal Value
 // **Summary Chart/Graphs:**
-// Participants per training course, Gender Breakdown of participants, Civil Status breakdown of participants, Number of STED participants per barangay
+// Value of proposals per barangay, Value of proposals per proposal category, Value of proposals per household livelihood category, Number of CCG households per barangay, number of CCG households per proposal category, number of CCG households per livelihood category
+// **Map:**
+// Thematic map - symbolized by proposal category, thematic map - symbolized by livelihood cateogory, thematic map - symobolized by proposal value
 
 function getLocationData(){
   $.get('query/targetlocations', function(response){
@@ -35,62 +39,69 @@ function getLocationData(){
       locationLookup[location['location_id']] = location;
       locationLookup[location['location_id'].slice(0,2)] = location;
     });
-    fetchSTED();
+
+// locationLookup = {
+//   "14124": {
+//     "id":"24",
+//     "location_id":"14124",
+//     "barangay_id":"124",
+//     "municipality_id":"14",
+//     "province":"Leyte",
+//     "municipality":"Tacloban",
+//     "barangay":"San Paglaum 103A"
+//   },
+//   "14123": {...},
+//   ...
+// };
+
+    fetchData();
   });
 }
 
-function ageCheck(input) {
-  if(isNaN(new Date(input))){
-    return "error calculating"
-  } else{
-    var today = new Date();
-    var birth = new Date(input);
-    var age = today.getFullYear() - birth.getFullYear() - 1; // Starting point
-    if( birth.getMonth() < today.getMonth() ) { age++;} // If it's past their birth month
-    if( birth.getMonth() == today.getMonth() && birth.getDate() <= today.getDate()) { age++; } // If it's past their birth day
-    return age;
-  }
-}
-
-function fetchSTED(){
-  $.get('query/stedparticipants', function(response){
+function fetchData(){
+  $.get('query/livelihoodccg', function(response){
     data = response;
     var counter = 0;
     data.forEach(function(d){
-      // # for the filter to work, if any of the data values are arrays then all data values need to be arrays
-      d['civil_status'] = [d['civil_status']];
-      d['sex'] = [d['sex']];
-      d['training_applied_for'] = [d['training_applied_for']];
-      d['location'] = [d['location_id'].slice(0,2), d['location_id'].slice(0,5)];
-      counter++;
-      if(counter === data.length){ buildFilters(); }
+      // # for the filter to work all the filtered data values need to be arrays even if all possibilities are just 1 value
+      // # this is keeping the option of filtering on 'proposed_items' open which is a comma seperated data field
+      d['amount_category'] = [d['amount_category']];
+      d['livelihood_category'] = [d['livelihood_category']];
+      d['livelihood_proposal'] = [d['livelihood_proposal']];
+      d['location_id'] = [d['household_id'].slice(0,5)];
+      d['location'] = [d['household_id'].slice(0,2), d['household_id'].slice(0,5)];
     });
+
+    buildFilters();
+
   });
 }
 
 function buildFilters(){
   // # get the unique values from the data for all our filter fields
-   civilArray = [],
-      genderArray = [],
-      trainingArray = [],
+  var amountArray = [],
+      categoryArray = [],
+      proposalArray = [],
       locationArray = [];
   $.each(data, function(i,item){
-    item['civil_status'].forEach(function(d){
-      if($.inArray(d, civilArray) === -1){ civilArray.push(d) }
+    item['amount_category'].forEach(function(d){
+      if($.inArray(d, amountArray) === -1){ amountArray.push(d) }
     });
-    item['sex'].forEach(function(d){
-      if($.inArray(d, genderArray) === -1){ genderArray.push(d) }
+    item['livelihood_category'].forEach(function(d){
+      if($.inArray(d, categoryArray) === -1){ categoryArray.push(d) }
     });
-    item['training_applied_for'].forEach(function(d){
-      if($.inArray(d, trainingArray) === -1){ trainingArray.push(d) }
+    item['livelihood_proposal'].forEach(function(d){
+      if($.inArray(d, proposalArray) === -1){ proposalArray.push(d) }
     });
-    if($.inArray(item['location_id'], locationArray) === -1){ locationArray.push(item['location_id']) }
+    item['location_id'].forEach(function(d){
+      if($.inArray(d, locationArray) === -1){ locationArray.push(d) }
+    });
 
   });
   // # alphabetize them arrays
-  civilArray.sort(d3.ascending);
-  genderArray.sort(d3.ascending);
-  trainingArray.sort(d3.ascending);
+  amountArray.sort(function(a, b) { return a - b; });
+  categoryArray.sort(d3.ascending);
+  proposalArray.sort(d3.ascending);
   locationArray.sort(function(a, b) { return a - b; });
   // # build the html and add it to the page
   var panelTitles = [];
@@ -107,16 +118,14 @@ function buildFilters(){
       var municipArray = [];
       $.each(array, function(i, a){
         var thisMunicip = a.slice(0,2);
-        if($.inArray(thisMunicip, municipArray) === -1 && locationLookup[thisMunicip] !== undefined){
+        if($.inArray(thisMunicip, municipArray) === -1){
           municipArray.push(thisMunicip);
           thisBodyHtml += (municipArray.length > 0) ? '<br>' : '';
           thisBodyHtml += '<div class="checkbox"><label><input type="checkbox" name="location" value="' +
               thisMunicip + '" onchange="filter();"><strong>' + locationLookup[thisMunicip].municipality + '<strong></label></div><br>';
         }
-        if(locationLookup[a] === undefined){ thisBodyHtml += '<div class="checkbox"><label><input type="checkbox" name="location" value="' +
-            a + '" onchange="filter();">' + 'data error' + '</label></div>'; }
-        else { thisBodyHtml += '<div class="checkbox"><label><input type="checkbox" name="location" value="' +
-            a + '" onchange="filter();">' + locationLookup[a].barangay + '</label></div>'; }
+        thisBodyHtml += '<div class="checkbox"><label><input type="checkbox" name="location" value="' +
+            a + '" onchange="filter();">' + locationLookup[a].barangay + '</label></div>';
       })
     } else {
       $.each(array, function(i, a){
@@ -127,9 +136,9 @@ function buildFilters(){
     thisBodyHtml += '</div>' + '</div>';
     $('.filter-panel.panel').append(thisBodyHtml);
   }
-  panelHtml('Civil status', 'civil_status', civilArray);
-  panelHtml('Gender', 'sex', genderArray);
-  panelHtml('Training applied for', 'training_applied_for', trainingArray);
+  panelHtml('Proposal amount', 'amount_category', amountArray);
+  panelHtml('Livelihood category', 'livelihood_category', categoryArray);
+  panelHtml('Livelihood proposal', 'livelihood_proposal', proposalArray);
   panelHtml('Location', null, locationArray, true);
   $('.filter-panel.panel-heading').html(panelTitles.join('&nbsp; | &nbsp;'));
 
@@ -190,39 +199,41 @@ function filter(){
     // # if all filter keys are passed, the project passes the filtering
     return passCount === filterKeyCount;
   })
+  console.log(filteredData.length)
 
   drawPies()
 
 }
 
-var pieRadius, genderPie, genderPiePath, civilPie, civilPiePath, trainingPie, trainingPiePath;
+
+var pieRadius, livelihoodPie, livelihoodPiePath, proposalPie, proposalPiePath, amountPie, amountPiePath;
 function buildPies(){
 
-  var widthOnPage = $('#genderPie').innerWidth();
+  var widthOnPage = $('#livelihoodPie').innerWidth();
   var width = (widthOnPage < 300) ? widthOnPage : 300;
   var height = width;
   pieRadius = Math.min(width, height) / 2;
 
-  genderPie = d3.select('#genderPie').append("svg")
+  livelihoodPie = d3.select('#livelihoodPie').append("svg")
       .attr("width", width)
       .attr("height", height)
     .append("g")
       .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
-  genderPiePath = genderPie.selectAll("path");
+  livelihoodPiePath = livelihoodPie.selectAll("path");
 
-  civilPie = d3.select('#civilPie').append("svg")
+  proposalPie = d3.select('#proposalPie').append("svg")
       .attr("width", width)
       .attr("height", height)
     .append("g")
       .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
-  civilPiePath = civilPie.selectAll("path");
+  proposalPiePath = proposalPie.selectAll("path");
 
-  trainingPie = d3.select('#trainingPie').append("svg")
+  amountPie = d3.select('#amountPie').append("svg")
       .attr("width", width)
       .attr("height", height)
     .append("g")
       .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
-  trainingPiePath = trainingPie.selectAll("path");
+  amountPiePath = amountPie.selectAll("path");
 
   buildBars();
 };
@@ -287,168 +298,168 @@ function drawPies(){
     return function(t) { return arc(i(t)); };
   }
 
-  ////////////////
-  // GENDER PIE //
-  // ########## //
-  ////////////////
-  var genderColor = d3.scale.category20().domain(data.map(function(d) { return d['sex'][0]; }))
+  ////////////////////
+  // LIVELIHOOD PIE //
+  // ############## //
+  ////////////////////
+  var livelihoodColor = d3.scale.category20().domain(data.map(function(d) { return d['livelihood_category'][0]; }))
 
-  var genderPieData = d3.nest()
-    .key(function(d) { return d['sex'][0]; })
+  var livelihoodPieData = d3.nest()
+    .key(function(d) { return d['livelihood_category'][0]; })
     .rollup(function(values){
       return values.length
     })
     .entries(filteredData)
 
-  var genderData0 = genderPiePath.data(),
-    genderData1 = pie(genderPieData);
+  var livelihoodData0 = livelihoodPiePath.data(),
+    livelihoodData1 = pie(livelihoodPieData);
 
-  genderPiePath = genderPiePath.data(genderData1, key);
+  livelihoodPiePath = livelihoodPiePath.data(livelihoodData1, key);
 
-  genderPiePath.enter().append("path")
-    .each(function(d, i) { this._current = findNeighborArc(i, genderData0, genderData1, key) || d; })
-    .attr("fill", function(d) { return genderColor(d.data.key); })
+  livelihoodPiePath.enter().append("path")
+    .each(function(d, i) { this._current = findNeighborArc(i, livelihoodData0, livelihoodData1, key) || d; })
+    .attr("fill", function(d) { return livelihoodColor(d.data.key); })
   .append("title")
     .text(function(d) { return d.data.key; });
 
-  genderPiePath.exit()
-    .datum(function(d, i) { return findNeighborArc(i, genderData1, genderData0, key) || d; })
+  livelihoodPiePath.exit()
+    .datum(function(d, i) { return findNeighborArc(i, livelihoodData1, livelihoodData0, key) || d; })
   .transition()
     .duration(750)
     .attrTween("d", arcTween)
     .remove();
 
-  genderPiePath.transition()
+  livelihoodPiePath.transition()
     .duration(750)
     .attrTween("d", arcTween);
 
   // Legend
-  var genderLegend = d3.select('#genderLegend').selectAll('div').data(genderPieData, function(d) { return d['key']; });
+  var livelihoodLegend = d3.select('#livelihoodLegend').selectAll('div').data(livelihoodPieData, function(d) { return d['key']; });
   // UPDATE
-  genderLegend.html(function(d){
-    return '<i class="fa fa-square" style="color:' + genderColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
+  livelihoodLegend.html(function(d){
+    return '<i class="fa fa-square" style="color:' + livelihoodColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
   })
   // ENTER
-  genderLegend.enter().append('div')
+  livelihoodLegend.enter().append('div')
   .attr('class', "legend-item")
   .html(function(d){
-    return '<i class="fa fa-square" style="color:' + genderColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
+    return '<i class="fa fa-square" style="color:' + livelihoodColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
   })
   // REMOVE
-  genderLegend.exit().remove();
+  livelihoodLegend.exit().remove();
   // sort
-  genderLegend.sort(function(a, b) {
-    return b.values - a.values;
-  })
-
-  //////////////////////
-  // CIVIL STATUS PIE //
-  // ################ //
-  //////////////////////
-  var civilColor = d3.scale.category20().domain(data.map(function(d) { return d['civil_status'][0]; }))
-
-  var civilPieData = d3.nest()
-    .key(function(d) { return d['civil_status'][0]; })
-    .rollup(function(values){
-      return values.length
-    })
-    .entries(filteredData)
-
-  var civilData0 = civilPiePath.data(),
-    civilData1 = pie(civilPieData);
-
-  civilPiePath = civilPiePath.data(civilData1, key);
-
-  civilPiePath.enter().append("path")
-    .each(function(d, i) { this._current = findNeighborArc(i, civilData0, civilData1, key) || d; })
-    .attr("fill", function(d) { return civilColor(d.data.key); })
-  .append("title")
-    .text(function(d) { return d.data.key; });
-
-  civilPiePath.exit()
-    .datum(function(d, i) { return findNeighborArc(i, civilData1, civilData0, key) || d; })
-  .transition()
-    .duration(750)
-    .attrTween("d", arcTween)
-    .remove();
-
-  civilPiePath.transition()
-    .duration(750)
-    .attrTween("d", arcTween);
-
-  // Legend
-  var civilLegend = d3.select('#civilLegend').selectAll('div').data(civilPieData, function(d) { return d['key']; });
-  // UPDATE
-  civilLegend.html(function(d){
-    return '<i class="fa fa-square" style="color:' + civilColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
-  })
-  // ENTER
-  civilLegend.enter().append('div')
-  .attr('class', "legend-item")
-  .html(function(d){
-    return '<i class="fa fa-square" style="color:' + civilColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
-  })
-  // REMOVE
-  civilLegend.exit().remove();
-  // sort
-  civilLegend.sort(function(a, b) {
+  livelihoodLegend.sort(function(a, b) {
     return b.values - a.values;
   })
 
   //////////////////
-  // TRAINING PIE //
+  // PROPOSAL PIE //
   // ############ //
   //////////////////
-  var trainingColor = d3.scale.category20().domain(data.map(function(d) { return d['training_applied_for'][0]; }))
+  var proposalColor = d3.scale.category20().domain(data.map(function(d) { return d['livelihood_proposal'][0]; }))
 
-  var trainingPieData = d3.nest()
-    .key(function(d) { return d['training_applied_for'][0]; })
+  var proposalPieData = d3.nest()
+    .key(function(d) { return d['livelihood_proposal'][0]; })
     .rollup(function(values){
       return values.length
     })
     .entries(filteredData)
 
-  var trainingData0 = trainingPiePath.data(),
-    trainingData1 = pie(trainingPieData);
+  var proposalData0 = proposalPiePath.data(),
+    proposalData1 = pie(proposalPieData);
 
-  trainingPiePath = trainingPiePath.data(trainingData1, key);
+  proposalPiePath = proposalPiePath.data(proposalData1, key);
 
-  trainingPiePath.enter().append("path")
-    .each(function(d, i) { this._current = findNeighborArc(i, trainingData0, trainingData1, key) || d; })
-    .attr("fill", function(d) { return trainingColor(d.data.key); })
+  proposalPiePath.enter().append("path")
+    .each(function(d, i) { this._current = findNeighborArc(i, proposalData0, proposalData1, key) || d; })
+    .attr("fill", function(d) { return proposalColor(d.data.key); })
   .append("title")
     .text(function(d) { return d.data.key; });
 
-  trainingPiePath.exit()
-    .datum(function(d, i) { return findNeighborArc(i, trainingData1, trainingData0, key) || d; })
+  proposalPiePath.exit()
+    .datum(function(d, i) { return findNeighborArc(i, proposalData1, proposalData0, key) || d; })
   .transition()
     .duration(750)
     .attrTween("d", arcTween)
     .remove();
 
-  trainingPiePath.transition()
+  proposalPiePath.transition()
     .duration(750)
     .attrTween("d", arcTween);
 
   // Legend
-  var trainingLegend = d3.select('#trainingLegend').selectAll('div').data(trainingPieData, function(d) { return d['key']; });
+  var proposalLegend = d3.select('#proposalLegend').selectAll('div').data(proposalPieData, function(d) { return d['key']; });
   // UPDATE
-  trainingLegend.html(function(d){
-    return '<i class="fa fa-square" style="color:' + trainingColor(d.key) + '"></i> &nbsp;' + d.key.toLowerCase() + ' <small>(' + d.values + ')</small>';
+  proposalLegend.html(function(d){
+    return '<i class="fa fa-square" style="color:' + proposalColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
   })
   // ENTER
-  trainingLegend.enter().append('div')
+  proposalLegend.enter().append('div')
   .attr('class', "legend-item")
   .html(function(d){
-    return '<i class="fa fa-square" style="color:' + trainingColor(d.key) + '"></i> &nbsp;' + d.key.toLowerCase() + ' <small>(' + d.values + ')</small>';
+    return '<i class="fa fa-square" style="color:' + proposalColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
   })
   // REMOVE
-  trainingLegend.exit().remove();
+  proposalLegend.exit().remove();
   // sort
-  trainingLegend.sort(function(a, b) {
+  proposalLegend.sort(function(a, b) {
     return b.values - a.values;
   })
 
+  //////////////////
+  // AMOUNT PIE //
+  // ############ //
+  //////////////////
+  var amountColor = d3.scale.category20().domain(data.map(function(d) { return d['amount_category'][0]; }))
+
+  var amountPieData = d3.nest()
+    .key(function(d) { return d['amount_category'][0]; })
+    .rollup(function(values){
+      return values.length
+    })
+    .entries(filteredData)
+
+  var amountData0 = amountPiePath.data(),
+    amountData1 = pie(amountPieData);
+
+  amountPiePath = amountPiePath.data(amountData1, key);
+
+  amountPiePath.enter().append("path")
+    .each(function(d, i) { this._current = findNeighborArc(i, amountData0, amountData1, key) || d; })
+    .attr("fill", function(d) { return amountColor(d.data.key); })
+  .append("title")
+    .text(function(d) { return d.data.key; });
+
+  amountPiePath.exit()
+    .datum(function(d, i) { return findNeighborArc(i, amountData1, amountData0, key) || d; })
+  .transition()
+    .duration(750)
+    .attrTween("d", arcTween)
+    .remove();
+
+  amountPiePath.transition()
+    .duration(750)
+    .attrTween("d", arcTween);
+
+  // Legend
+  var amountLegend = d3.select('#amountLegend').selectAll('div').data(amountPieData, function(d) { return d['key']; });
+  // UPDATE
+  amountLegend.html(function(d){
+    return '<i class="fa fa-square" style="color:' + amountColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
+  })
+  // ENTER
+  amountLegend.enter().append('div')
+  .attr('class', "legend-item")
+  .html(function(d){
+    return '<i class="fa fa-square" style="color:' + amountColor(d.key) + '"></i> &nbsp;' + d.key + ' <small>(' + d.values + ')</small>';
+  })
+  // REMOVE
+  amountLegend.exit().remove();
+  // sort
+  amountLegend.sort(function(a, b) {
+    return b.values - a.values;
+  })
+  //
   drawBars();
 }
 
@@ -460,6 +471,7 @@ function drawBars(){
     .entries(filteredData);
 
   brgyBarsX.domain([0, d3.max(brgyBarsData, function(d) { return d.values; })]);
+
 
   brgyBars.attr("height", brgyBarsMeas.barHeight * brgyBarsData.length);
 
@@ -484,10 +496,7 @@ function drawBars(){
   g.select("rect").transition().duration(1000).ease("sin-in-out")
     .attr("width", function(d) { return brgyBarsX(d.values); })
   g.select(".brgy-label")
-      .text(function(d) {
-        if(locationLookup[d.key] === undefined){ return d.key; }
-        else { return locationLookup[d.key].barangay + ", " + locationLookup[d.key].municipality; }
-      });
+      .text(function(d) { return locationLookup[d.key].barangay + ", " + locationLookup[d.key].municipality; });
   g.select(".brgy-total").transition().duration(1000).ease("sin-in-out")
       .attr("x", function(d) { return brgyBarsX(d.values) + 3; })
       .text(function(d) { return d.values; });
@@ -502,66 +511,41 @@ function buildList(){
 
   $('#listTable').empty();
   $('#listTable').html('<table data-sortable id="dataTable" class="compact sortable-theme-minimal">' +
-        '<thead><th>HH ID</th><th>First name</th><th>Last name</th><th>Course</th><th>Details</th></tr></thead>' +
-        '<tfoot><th>HH ID</th><th>First name</th><th>Last name</th><th>Course</th><th>Details</th></tr></tfoot>' +
-        '<tbody></tbody></table>')
+        '<thead><tr><th>Last</th><th>First</th><th>Livelihood</th><th>Proposal</th><th>Amount</th><th>Household ID</th></tr></thead>'+
+        '<tfoot><tr><th>Last</th><th>First</th><th>Livelihood</th><th>Proposal</th><th>Amount</th><th>Household ID</th></tr></tfoot><tbody></tbody></table>')
   $.each(filteredData, function(i,d){
     var rowHtml = '<tr>' +
-      '<td>' + d.household_id + '</td>' +
-      '<td>' + d.participant_fname + '</td>' +
-      '<td>' + d.participant_lname + '</td>' +
-      '<td>' + d.training_applied_for + '</td>' +
-      '<td><button type="button" class="btn btn-default btn-xs" data-toggle="modal" data-target="#sted-modal" data-id="' + d.id +
-      '"><b class="fa fa-info"></b></button></td>' +
+      '<td>' + d['head_of_hh_lname'] + '</td>' +
+      '<td>' + d['head_of_hh_fname'] + '</td>' +
+      '<td>' + d['livelihood_category'] + '</td>' +
+      '<td>' + d['livelihood_proposal'] + '</td>' +
+      '<td>' + commaSeperator(d['amount_category']) + '</td>' +
+      '<td>' + d['household_id'] + '</td>' +
       '</tr>';
     $('#listTable tbody').append(rowHtml);
   });
 
-    $('#sted-modal').on('show.bs.modal', function (event) {
-      var buttonId = $(event.relatedTarget).data('id').toString(); // data-id attribute for the button that triggered the modal
-      var modal = $(this);
-      for(i=0;i<filteredData.length;i++){
-        if(buttonId === filteredData[i]['id']){
-          var hhId = filteredData[i].household_id.toString();
-          var name = filteredData[i].participant_fname + " ";
-          name += (filteredData[i].participant_mname !== null) ? filteredData[i].participant_mname + " " : "";
-          name += filteredData[i].participant_lname;
-          modal.find('.modal-title').html(name);
-          var location = (locationLookup[filteredData[i].location_id] === undefined) ? "not known" : locationLookup[filteredData[i].location_id].barangay + ", " +
-            locationLookup[filteredData[i].location_id].municipality;
-          var detailsHtml = "<b>Training applied for:</b> " + filteredData[i].training_applied_for + "<br>" +
-            "<b>Contact number:</b> " + filteredData[i].contact_no + "<br>" +
-            "<b>Start date:</b> " + filteredData[i].start_date + "<br>" +
-            "<b>Gender:</b> " + filteredData[i].sex + "<br>" +
-            "<b>Civil status:</b> " + filteredData[i].civil_status + "<br>" +
-            "<b>Birth date:</b> " + filteredData[i].birthdate + "<br>" +
-            "<b>Age:</b> " + ageCheck(filteredData[i].birthdate) + "<br>" +
-            "<b>Household location:</b> " + location + "<br>";
-          modal.find('.modal-body p').html(detailsHtml);
-          break;
-        }
+  $('#dataTable tfoot th').each(function(){
+    var title = $(this).text();
+    $(this).html('<input type="text" placeholder="Search '+title+'" />');
+  });
+
+  var table = $('#dataTable').DataTable({"sDom":'lrtip'});
+
+  table.columns().every( function() {
+    var that = this;
+
+    $('input', this.footer() ).on('keyup change', function(){
+      if( that.search() !== this.value ){
+        that
+        .search( this.value )
+        .draw();
       }
     });
+  });
 
-    $('#dataTable tfoot th').each(function(){
-      var title = $(this).text();
-      $(this).html('<input type="text" placeholder="Search '+title+'" />');
-    });
-
-    var table = $('#dataTable').DataTable({"sDom":'lrtip'});
-
-    table.columns().every( function() {
-      var that = this;
-
-      $('input', this.footer() ).on('keyup change', function(){
-        if( that.search() !== this.value ){
-          that
-          .search( this.value )
-          .draw();
-        }
-      });
-    });
 
 }
+
 
 getLocationData();

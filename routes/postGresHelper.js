@@ -36,5 +36,11 @@ PostGresHelper.prototype.query = function(queryStr, cb) {
   });
 };
 
+PostGresHelper.prototype.closeAll = function(cb) {
+  pg.end();
+  cb();
+}
+
+
 
 module.exports = PostGresHelper;
